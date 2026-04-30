@@ -22,7 +22,6 @@ public class BookingService {
     @Autowired
     private BookingProducer producer;
 
-
     public BookingResponse createBooking(BookingRequest request) {
 
         String seatKey = "lock:show:" + request.getShowId() + ":seat:" + request.getSeatNumber();
