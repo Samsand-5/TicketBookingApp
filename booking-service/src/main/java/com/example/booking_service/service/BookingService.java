@@ -3,6 +3,7 @@ package com.example.booking_service.service;
 import com.example.booking_service.dto.BookingRequest;
 import com.example.booking_service.dto.BookingResponse;
 import com.example.booking_service.entity.Booking;
+import com.example.booking_service.exception.SeatAlreadyLockedException;
 import com.example.booking_service.kafka.BookingProducer;
 import com.example.booking_service.redis.SeatLockService;
 import com.example.booking_service.repository.BookingRepository;
@@ -23,12 +24,14 @@ public class BookingService {
 
     public BookingResponse createBooking(BookingRequest request) {
 
-        String seatKey = request.getShowId() + "_" + request.getSeatNumber();
+        String seatKey = "lock:show:" + request.getShowId() + ":seat:" + request.getSeatNumber();
 
+        // 🔒 Seat Lock Check
         if (!seatLockService.lockSeat(seatKey)) {
-            throw new RuntimeException("Seat already locked");
+            throw new SeatAlreadyLockedException("Seat already locked");
         }
 
+        // 💾 Save Booking
         Booking booking = new Booking();
         booking.setUserId(request.getUserId());
         booking.setShowId(request.getShowId());
@@ -37,7 +40,7 @@ public class BookingService {
 
         repository.save(booking);
 
-        // Saga start
+        // 📡 Saga Start
         producer.sendBookingCreated(booking.getId());
 
         return new BookingResponse(booking.getId(), "PENDING");

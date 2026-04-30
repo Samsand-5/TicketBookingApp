@@ -16,7 +16,7 @@ public class SecurityConfig {
         http
                 .csrf(csrf -> csrf.disable()) // Updated lambda syntax
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/bookings/**").authenticated()
+                        .requestMatchers("/bookings/**").permitAll()
                         .anyRequest().permitAll()
                 );
         return http.build();
