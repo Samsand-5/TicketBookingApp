@@ -6,23 +6,61 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Service;
 
+import java.util.Optional;
+
 @Service
 public class PaymentConsumer {
 
     @Autowired
-    private BookingRepository bookingRepository;
+    private BookingRepository repository;
 
-    @KafkaListener(topics = "payment-success")
-    public void handleSuccess(String bookingId) {
-        Booking booking = bookingRepository.findById(Long.parseLong(bookingId)).get();
-        booking.setStatus("CONFIRMED");
-        bookingRepository.save(booking);
+    // Handle SUCCESS
+    @KafkaListener(topics = "payment-success", groupId = "booking-group")
+    public void handlePaymentSuccess(String bookingIdStr) {
+
+        Long bookingId = Long.parseLong(bookingIdStr);
+
+        Optional<Booking> optionalBooking = repository.findById(bookingId);
+
+        if (optionalBooking.isPresent()) {
+
+            Booking booking = optionalBooking.get();
+
+            // Idempotency check
+            if (!"CONFIRMED".equals(booking.getStatus())) {
+                booking.setStatus("CONFIRMED");
+                repository.save(booking);
+
+                System.out.println("Booking CONFIRMED: " + bookingId);
+            }
+
+        } else {
+            System.out.println("Booking not found for ID: " + bookingId);
+        }
     }
 
-    @KafkaListener(topics = "payment-failed")
-    public void handleFailure(String bookingId) {
-        Booking booking = bookingRepository.findById(Long.parseLong(bookingId)).get();
-        booking.setStatus("FAILED");
-        bookingRepository.save(booking);
+    // Handle FAILURE
+    @KafkaListener(topics = "payment-failed", groupId = "booking-group")
+    public void handlePaymentFailure(String bookingIdStr) {
+
+        Long bookingId = Long.parseLong(bookingIdStr);
+
+        Optional<Booking> optionalBooking = repository.findById(bookingId);
+
+        if (optionalBooking.isPresent()) {
+
+            Booking booking = optionalBooking.get();
+
+            // Idempotency check
+            if (!"FAILED".equals(booking.getStatus())) {
+                booking.setStatus("FAILED");
+                repository.save(booking);
+
+                System.out.println("Booking FAILED: " + bookingId);
+            }
+
+        } else {
+            System.out.println("Booking not found for ID: " + bookingId);
+        }
     }
 }
